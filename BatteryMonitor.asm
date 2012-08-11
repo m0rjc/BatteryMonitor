@@ -51,7 +51,9 @@ main
 	movlw	b'00000111'		; Disable the comparator
 	movwf	CMCON
 
-; Populate the tables
+; Populate the tables 
+	bsf 	STATUS, RP0		; Bank 1 for EEPROM access
+
 	movlw	.18
 	movwf	tmp
 	addlw	ramTables-1
@@ -59,11 +61,17 @@ main
 populateLoop
 	movf	tmp, W
 	addlw	-1
-	call 	romTables	; Value now in W
+; Read EEPROM
+	movwf 	EEADR
+	bsf 	EECON1, RD
+	movf	EEDATA, W
+
 	movwf	INDF
 	decf	FSR, F
 	decfsz	tmp, F
 	goto populateLoop
+
+	bcf		STATUS, RP0		; Bank 0
 
 ;--------------------------------------------------------------------------------
 ; Main Loop
@@ -119,6 +127,7 @@ delay
 
 	goto mainLoop
 
+
 ;--------------------------------------------------------------------------------
 ; Data
 ;
@@ -152,32 +161,32 @@ progData	CODE
 ; GP2	¬Red, Green
 ; GP4	¬Orange
 ; GP5	¬Blue
-romTables	ADDWF PCL, F
-	RETLW .2
-	RETLW	b'00110010'			; Less than 10%			          		    RED
+romTables	
+	de .2
+	de	b'00110010'			; Less than 10%			          		    RED
 
-	RETLW .31
-	RETLW	b'00100010'			; Less than 30%		       		     ORANGE RED
+	de .31
+	de	b'00100010'			; Less than 30%		       		     ORANGE RED
 
-	RETLW .17
-	RETLW	b'00100000'			; Less than 50%		       	    	 ORANGE
+	de .17
+	de	b'00100000'			; Less than 50%		       	    	 ORANGE
 
-	RETLW .17
-	RETLW	b'00100100'			; Less than 75%		 		   GREEN ORANGE
+	de .17
+	de	b'00100100'			; Less than 75%		 		   GREEN ORANGE
 
-	RETLW .31
-	RETLW	b'00110100'			; Up to 100%		 		   GREEN
+	de .31
+	de	b'00110100'			; Up to 100%		 		   GREEN
 
-	RETLW .81
-	RETLW	b'00010100'			; Float charge up to to 13.8V  GREEN             BLUE
+	de .81
+	de	b'00010100'			; Float charge up to to 13.8V  GREEN             BLUE
 
-	RETLW .41
-	RETLW	b'00000000'			; Boost for wet cell to 14.4V        ORANGE      BLUE
+	de .41
+	de	b'00000000'			; Boost for wet cell to 14.4V        ORANGE      BLUE
 
-	RETLW .21
-	RETLW	b'00000010'			; Boost for AGM cell to 14.7V        ORANGE RED  BLUE
+	de .21
+	de	b'00000010'			; Boost for AGM cell to 14.7V        ORANGE RED  BLUE
 
-	RETLW 0		; Terminator
-	RETLW	b'00010010'			; Overcharge								RED  BLUE
+	de  0		; Terminator
+	de	b'00010010'			; Overcharge								RED  BLUE
 
 	END
