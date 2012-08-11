@@ -2,12 +2,19 @@
 	list p=12F675
 	#include <p12F675.inc>
 
+; Simulate a saw tooth overlayed on the signal which will
+;   cause the LEDs to transition between states.
+;   amplitude equivalent to 15mV on the 12V supply line for each step. 
+; The saw tooth runs from NOISE_AMPLITUDE + OFFSET to 1 + OFFSET, so
+; +2 to -2 in this case, or +-30mV
+	#define NOISE_AMPLITUDE 5
+	#define NOISE_OFFSET -3
+
 	__CONFIG	_MCLRE_OFF & _BODEN_OFF & _CP_OFF & _PWRTE_ON & _CPD_OFF & _WDT_OFF & _INTRC_OSC_NOCLKOUT
 
-varsWorking		UDATA_SHR		; tmp must be in Bank 0. ramTables can go into back 1 if needed.
-tmp				RES .1
-
-varsTables		UDATA_SHR
+varsWorking		UDATA_SHR	 ; It only has shared memory.	
+tmp				RES .1		; Temporary work variable
+noise			RES .1		
 ramTables		RES .18
 
 BOOTVEC	CODE 0x00
@@ -73,6 +80,9 @@ populateLoop
 
 	bcf		STATUS, RP0		; Bank 0
 
+	movlw NOISE_AMPLITUDE
+	movwf noise
+
 ;--------------------------------------------------------------------------------
 ; Main Loop
 ;--------------------------------------------------------------------------------
@@ -93,8 +103,23 @@ adcPoll
 	BCF		STATUS, RP0
 	movwf	tmp
 
+; Apply the saw tooth to the signal, preventing it wrapping
+	addwf	noise, W
+	addlw	NOISE_OFFSET
+	xorwf	tmp, F		; This will leave the MSB 0 if the sign bit has not changed
+	btfss	tmp, 7
+		clrf	tmp		; The XOR after a CLR is equivalent to a MOVWF to save the value
+	xorwf	tmp, F		; The XOR without the CLR undoes the previous XOR 
+
+; Move the noise value ready for next time
+	decfsz	noise, F
+		goto testUpperBits
+	movlw NOISE_AMPLITUDE
+	movwf noise
+
 ; Test the upper bits.
 ; If the result was too low then we set tmp to 0 to trigger a hit on the first test
+testUpperBits
 	movlw	3
 	subwf	ADRESH, W
 	btfss	STATUS, C
@@ -117,13 +142,6 @@ resultFound
 	incf FSR, F		; Advance to the value to use
 	movf	INDF, W
 	movwf	GPIO
-
-; Delay long enough for the ADC to be ready
-	movlw 8
-delay
-	addlw -1
-	btfss	STATUS, Z
-		goto delay
 
 	goto mainLoop
 

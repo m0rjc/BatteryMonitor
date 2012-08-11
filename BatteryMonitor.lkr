@@ -7,5 +7,4 @@
 	SECTION		NAME=progData		ROM=eedata
 
 	SECTION		NAME=varsWorking	RAM=gpr0
-	SECTION		NAME=varsTables		RAM=gpr0
 
