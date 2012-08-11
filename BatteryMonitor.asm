@@ -153,28 +153,28 @@ progData	CODE
 ; GP4	¬Orange
 ; GP5	¬Blue
 romTables	ADDWF PCL, F
-	RETLW 2
+	RETLW .2
 	RETLW	b'00110010'			; Less than 10%			          		    RED
 
-	RETLW 31
+	RETLW .31
 	RETLW	b'00100010'			; Less than 30%		       		     ORANGE RED
 
-	RETLW 17
+	RETLW .17
 	RETLW	b'00100000'			; Less than 50%		       	    	 ORANGE
 
-	RETLW 17
+	RETLW .17
 	RETLW	b'00100100'			; Less than 75%		 		   GREEN ORANGE
 
-	RETLW 31
+	RETLW .31
 	RETLW	b'00110100'			; Up to 100%		 		   GREEN
 
-	RETLW 81
+	RETLW .81
 	RETLW	b'00010100'			; Float charge up to to 13.8V  GREEN             BLUE
 
-	RETLW 41
+	RETLW .41
 	RETLW	b'00000000'			; Boost for wet cell to 14.4V        ORANGE      BLUE
 
-	RETLW 21
+	RETLW .21
 	RETLW	b'00000010'			; Boost for AGM cell to 14.7V        ORANGE RED  BLUE
 
 	RETLW 0		; Terminator
