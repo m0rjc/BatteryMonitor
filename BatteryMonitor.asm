@@ -2,42 +2,57 @@
 	list p=12F675
 	#include <p12F675.inc>
 
-	__CONFIG	_MCLRE_ON & _CP_OFF & _WDT_OFF & _intRC_OSC
+	__CONFIG	_MCLRE_OFF & _BODEN_OFF & _CP_OFF & _PWRTE_ON & _CPD_OFF & _WDT_OFF & _INTRC_OSC_NOCLKOUT
 
-vars	UDATA_ACS
-tmp				RES 1
-ramTables			RES 18
+varsWorking		UDATA_SHR		; tmp must be in Bank 0. ramTables can go into back 1 if needed.
+tmp				RES .1
+
+varsTables		UDATA_SHR
+ramTables		RES .18
 
 BOOTVEC	CODE 0x00
 	goto main
 
-MAIN	CODE
+INTVEC	CODE 0x04
+	; Use the interrupt to wake from sleep, but allow the main loop to process the event.
+	retfie
+
+codeMain	CODE
 ;--------------------------------------------------------------------------------
 ; Initialisation
 ;--------------------------------------------------------------------------------
 main
 
-; Not using interrupts
-	CLRF	INTCON
+; Set up GPIO - Analog 0 and 4 outputs 
+	BSF		STATUS, RP0		; Bank 1
 	movlw	b'10001111'
-	movwf	OPTION
+	movwf	OPTION_REG
 
-; Set up timer 1 for fairly infrequent polling  (1MHz / 8 / 256 / 256 = approx 2Hz)
-	BANKSEL T1CON
-	MOVLW b'00110101'  ; Enabled, Internal Clock, Prescale 8
-	MOVWF T1CON
-	CLRF	TMR1L
-	CLRF	TMR1H
-
-; Set up GPIO - Analog 0 and 4 outputs
 	movlw	b'00001001'
-	tris	GPIO
+	movwf	TRISIO
+
+; Using interrupts for the ADC module
+;	movlw	b'11000000'		; Global and Peripheral interrupt enable
+;	movwf	INTCON
+	clrf	INTCON
+	
+	movlw	b'01000000'		; ADC interrupt enable to escape SLEEP
+	movwf	PIE1
 
 ; Set up ADC to read GP0, use top 2 bits and bottom 8 bits.
-; Use internal timer. Then I can change this code to spend most of its time in sleep!
+; Use internal timer to allow operation in SLEEP.
+	movlw	b'00110001'		; Internal clock, AN0 enabled
+	movwf	ANSEL
+
+	BCF		STATUS, RP0		; Bank 0
+	movlw	b'10000001'		; Right justified, input AN0, enabled, stop
+	movwf	ADCON0
+
+	movlw	b'00000111'		; Disable the comparator
+	movwf	CMCON
 
 ; Populate the tables
-	movlw	18
+	movlw	.18
 	movwf	tmp
 	addlw	ramTables-1
 	movwf	FSR
@@ -46,8 +61,8 @@ populateLoop
 	addlw	-1
 	call 	romTables	; Value now in W
 	movwf	INDF
-	decf	FSR
-	decfsz	tmp
+	decf	FSR, F
+	decfsz	tmp, F
 	goto populateLoop
 
 ;--------------------------------------------------------------------------------
@@ -55,25 +70,25 @@ populateLoop
 ;--------------------------------------------------------------------------------
 mainLoop
 
-; Trigger the ADC and poll for completion. 
-	BANKSEL ADCON0
-	BSF		ADCON0	1		; GO
+; Trigger the ADC, go into sleep, then to be sure poll for completion. 
+	BCF 	STATUS, RP0		; Bank 0. Optional in current code.
+	BSF		ADCON0,	1		; GO
+	SLEEP
+	NOP
 adcPoll
-	BTFSC	ADCON0	1		; ¬DONE
+	BTFSC	ADCON0,	1		; ¬DONE
 	GOTO adcPoll
 
 ; Load the low bits of the ADC result into tmp
-	BANKSEL ADRESL
+	BSF		STATUS, RP0
 	movf	ADRESL, W
-	BANKSEL tmp
+	BCF		STATUS, RP0
 	movwf	tmp
 
 ; Test the upper bits.
 ; If the result was too low then we set tmp to 0 to trigger a hit on the first test
-	BANKSEL ADRESH
 	movlw	3
 	subwf	ADRESH, W
-	BANKSEL tmp
 	btfss	STATUS, C
 	clrf	tmp
 
@@ -87,21 +102,20 @@ subtractLoop
 	subwf	tmp, F
 	btfss	STATUS, C
 		goto resultFound
-	incf FSR
-	incf FSR
+	incf FSR, F
+	incf FSR, F
 	goto subtractLoop	
-resultWasFound
-	incf FSR		; Advance to the value to use
-	BANKSEL GPIO
+resultFound
+	incf FSR, F		; Advance to the value to use
 	movf	INDF, W
 	movwf	GPIO
-	
-; Sit polling timer 1. 
-	BANKSEL PIR1
-	BCF		PIR1
-tmrPoll
-	BTFSS	PIR1	0
-	GOTO tmrPoll
+
+; Delay long enough for the ADC to be ready
+	movlw 8
+delay
+	addlw -1
+	btfss	STATUS, Z
+		goto delay
 
 	goto mainLoop
 
@@ -138,7 +152,7 @@ progData	CODE
 ; GP2	¬Red, Green
 ; GP4	¬Orange
 ; GP5	¬Blue
-romTables	ADDWF PCL
+romTables	ADDWF PCL, F
 	RETLW 2
 	RETLW	b'00110010'			; Less than 10%			          		    RED
 

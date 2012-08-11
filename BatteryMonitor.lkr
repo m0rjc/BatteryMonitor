@@ -1,0 +1,9 @@
+
+	INCLUDE 12f675_g.lkr
+
+
+	SECTION 	NAME=codaMain		ROM=page
+
+	SECTION		NAME=varsWorking	RAM=gpr0
+	SECTION		NAME=varsTables		RAM=gpr0
+
