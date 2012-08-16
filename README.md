@@ -14,12 +14,3 @@ An alternative could be to have a couple of pre-programmed profiles. I also use 
 have different working voltages to lead acid, so switching at the press of a button could work well.
 
 Program size currently stands at 94 words out of 1024 available, so plenty of space to experiment.
-
-First Prototype
----------------
-
-The first prototype was made using veroboard with few track cuts. The wires off to the left run to a DPDT ON-OFF-ON
-switch, the intention being to have this act as power swich (red cable) and select mode between lead acid and NiMH 
-battery packs.
-
-![Prototype circuit board](docs/FirstPrototypeBoard.jpg)
