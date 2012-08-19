@@ -5,20 +5,25 @@
 
 ; Pin assignments - bring a pin low to light an LED
 ; AND these constants together to produde a lighting state.
-	#define RED        b'11111110'			; GP0
+	#define GREEN      b'11111110'			; GP0
 	#define ORANGE     b'11111101'			; GP1
-	#define GREEN      b'11111011'			; GP2
+	#define RED        b'11111011'			; GP2
 	#define BLUE	   b'11011111'			; GP5
 
 
 ;--------------------------------------------------------------------------------
 ; Data
 ;
-; Two tables of 9 bytes interleaved:
+; 9 records of 2 bytes each.
 ;
-;    8 bytes of amount to subtract for each test, then a zero terminator
-;	 8 bytes of the LED outputs if that test takes the level below zero, then one more
-;      should no tests take it below zero.
+; The first byte is an amount to subtract from the ADC reading. The ADC reading is
+; an 8 bit number between 0 representing 10V and 255 representing 15V.
+;
+; The second byte is the state of the LEDs should subtracting the first take the
+; result below zero.
+;
+; The last record has zero as its subtract value. This acts as a terminator in the
+; code.
 ;--------------------------------------------------------------------------------
 progData	CODE
 
@@ -45,8 +50,8 @@ romTables
 	de .27, ORANGE & GREEN					; Up to 75%
 	de .41, GREEN							; Up to 100%
 	de .61, GREEN & BLUE					; Float Charge
-	de .41, ORANGE & BLUE					; Topping Charge
-	de .21, ORANGE & RED & BLUE				; Topping Charge for AGM
+	de .41, GREEN & ORANGE & BLUE			; Topping Charge
+	de .21, ORANGE & BLUE					; Topping Charge for AGM
 	de  0,  RED & BLUE						; (Terminator) Overcharge/Reconditioning
 
 	END
