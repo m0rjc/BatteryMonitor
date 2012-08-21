@@ -23,7 +23,6 @@ BOOTVEC	CODE 0x00
 	goto main
 
 INTVEC	CODE 0x04
-	; Use the interrupt to wake from sleep, but allow the main loop to process the event.
 	retfie
 
 codeMain	CODE
@@ -33,8 +32,6 @@ codeMain	CODE
 main
 
 	BCF		STATUS, RP0		; Bank 0
-	movlw	b'10001101'		; Right justified, input AN3, enabled, stopped
-	movwf	ADCON0
 
 	movlw	b'00000111'		; Disable the comparator
 	movwf	CMCON
@@ -46,17 +43,16 @@ main
 	movwf	OPTION_REG
 
 
-; Using interrupts for the ADC module
-;	movlw	b'11000000'		; Global and Peripheral interrupt enable
-;	movwf	INTCON
+; Not Using interrupts
 	clrf	INTCON
 	
-	movlw	b'01000000'		; ADC interrupt enable to escape SLEEP
+	movlw	b'01000000'		; ADC interrupt to escape SLEEP didn't work on real hardware.
 	movwf	PIE1
 
 ; Set up ADC to read AN3, use top 2 bits and bottom 8 bits.
-; Use internal timer to allow operation in SLEEP.
-	movlw	b'00111000'		; Internal clock, AN3 enabled
+; System Clock for 4MHz is Fosc/8, (gives approx 11kS/s )
+; AN3 enabled 
+	movlw	b'00011000'	
 	movwf	ANSEL
 
 	movlw	b'00011000'
@@ -64,10 +60,15 @@ main
 
 	BCF		STATUS, RP0		; Bank 0
 
-;	DEBUG
-	movlw	b'11011111' ;; blue
-	movwf	GPIO
+	movlw	b'10001101'		; Right justified, input AN3, enabled, stopped
+	movwf	ADCON0
 
+;	DEBUG
+	clrf	GPIO
+
+	; Timer 1 with internal clock and 8 times prescaler. Approx 1.9 cycles per second
+	movlw	b'00110001'
+	movwf	T1CON
 
 ; Populate the tables 
 	bsf 	STATUS, RP0		; Bank 1 for EEPROM access
@@ -98,13 +99,7 @@ populateLoop
 ; Main Loop
 ;--------------------------------------------------------------------------------
 mainLoop
-
-	; DEBUG
-;	movlw	b'11111110' ;; red
-;	movwf	GPIO
-
-
-; Trigger the ADC, go into sleep, then to be sure poll for completion. 
+; Trigger the ADC, then poll for completion. 
 	BCF 	STATUS, RP0		; Bank 0. Optional in current code.
 	BSF		ADCON0,	1		; GO
 ;	SLEEP
@@ -156,6 +151,22 @@ subtractLoop
 	goto subtractLoop	
 resultFound
 	incf FSR, F		; Advance to the value to use
+	movf	INDF, W
+
+	; Flash the red LED if it's on by looking at TMR1H's top bit
+	btfsc TMR1H, 7
+		iorlw b'100'	; Red is on GP2
+
+	; If an LED is off then set it to high impedance so it can
+	; be used as an input.
+	BSF 	STATUS, RP0		; Bank 1
+	andlw b'0100111'
+	iorwf TRISIO, F
+	iorlw b'1011000'
+	andwf TRISIO, F
+
+	; Write the output
+	BCF 	STATUS, RP0		; Bank 0
 	movf	INDF, W
 	movwf	GPIO
 
