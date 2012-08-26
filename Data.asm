@@ -2,13 +2,16 @@
 	list p=12F675
 	#include <p12F675.inc>
 
-
-; Pin assignments - bring a pin low to light an LED
-; AND these constants together to produde a lighting state.
-	#define GREEN      b'11111110'			; GP0
-	#define ORANGE     b'11111101'			; GP1
-	#define RED        b'11111011'			; GP2
-	#define BLUE	   b'11011111'			; GP5
+; The 4 LED circuit can display 5 combinations indicated by colours here.
+; The bi-colour circuit can display 9 shades numbered 0 (red) to 8 (green).
+; The bi-colour shade is stored in the lower nibble. The 4 LED combination in the upper nibble
+; Constants for the 4 colours are combined using &.
+; The "BLUE" LED applies in both cases.
+; The presence of the RED LED setting will cause the bi-colour circuit to flash its LED.
+	#define RED						b'10110000'  
+	#define ORANGE					b'11010000'
+	#define GREEN					b'11100000'
+	#define BLUE					b'01110000'
 
 
 ;--------------------------------------------------------------------------------
@@ -44,14 +47,14 @@ progData	CODE
 ; but errors in Vref will likely swamp that. 														
 ;
 romTables	
-	de .2,  RED								; Up to 10%
-	de .31, RED & ORANGE					; Up to 30%
-	de .17, ORANGE							; Up to 50%
-	de .27, ORANGE & GREEN					; Up to 75%
-	de .41, GREEN							; Up to 100%
-	de .61, GREEN & BLUE					; Float Charge
-	de .41, GREEN & ORANGE & BLUE			; Topping Charge
-	de .21, ORANGE & BLUE					; Topping Charge for AGM
-	de  0,  RED & BLUE						; (Terminator) Overcharge/Reconditioning
+	de .2,  0	+ RED						; Up to 10%
+	de .31, 2	+ (RED & ORANGE)			; Up to 30%
+	de .17, 4	+ ORANGE					; Up to 50%
+	de .27, 6	+ (ORANGE & GREEN)			; Up to 75%
+	de .41, 8	+ GREEN						; Up to 100%
+	de .61, 8	+ (GREEN & BLUE)			; Float Charge
+	de .41, 5	+ (ORANGE & GREEN & BLUE)	; Topping Charge
+	de .21, 3	+ (ORANGE & BLUE)			; Topping Charge for AGM
+	de  0,  0	+ (RED & BLUE)				; (Terminator) Overcharge/Reconditioning
 
 	END
